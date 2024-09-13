@@ -125,9 +125,11 @@ export default async function (fastify: FastifyInstance) {
                 .send(Buffer.from(pdfBytes))
             }
           } catch (err) {
+            request.log.error({ err }, 'error while trying to modify pdf')
             console.log(err)
           } finally {
             if (!success) {
+              request.log.debug('modifying pdf unsuccessfull, falling back to unmodified file!')
               const stream = fs.createReadStream(_fn)
               return reply
                 .send(stream)
