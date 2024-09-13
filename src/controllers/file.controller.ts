@@ -1,11 +1,24 @@
 // External dependencies
 import { FastifyRequest, FastifyReply, FastifyInstance } from 'fastify'
 import { env } from 'process'
+import sql from 'mssql'
 import fs from 'fs'
 import { PDFDocument } from 'pdf-lib'
 
 import Document from '../repositories/document.repository'
 import Tools from '../repositories/tools'
+
+declare module 'fastify' {
+  export interface FastifyInstance {
+    getSqlPool: (name?: string) => Promise<sql.ConnectionPool>
+  }
+
+  export interface FastifyReply {
+    success: (data?: any, code?: number, executionTime?: number) => FastifyReply
+    fail: (data?: any, code?: number, executionTime?: number) => FastifyReply
+    error: (message?: string, code?: number, executionTime?: number) => FastifyReply
+  }
+}
 
 export default async function (fastify: FastifyInstance) {
   fastify.get('/:uuid', async (request: FastifyRequest<{
@@ -21,11 +34,12 @@ export default async function (fastify: FastifyInstance) {
     }
 
     try {
-      const repository = new Document()
+      const pool = await fastify.getSqlPool()
+      const repo = new Document(request.log, pool)
       // const token = request.token || { sub: null }
       let uuid: string = request.params['uuid'].toLowerCase()
 
-      let document = await repository.findOne({
+      let document = await repo.findOne({
         guid: uuid
       })
 
@@ -39,9 +53,8 @@ export default async function (fastify: FastifyInstance) {
           const document_name_encoded = encodeURI(document.name)
           let filename = `filename="${document_name_encoded}"; filename*=UTF-8''${document_name_encoded}`
 
-          if (contentMode === 'inline') {
+          if (contentMode === 'inline')
             filename = `filename="${document.documentType}_${document.itemNum}.${document.extension}"`
-          }
 
           reply
             .header('Cache-Control', `must-revalidate, max-age=${document.maxAge}, private`)
@@ -56,7 +69,7 @@ export default async function (fastify: FastifyInstance) {
           let success = false
           try {
             if (Tools.shouldModifyPDF(document)) {
-              const pdfDoc = await PDFDocument.load(fs.readFileSync(_fn), { ignoreEncryption: true })
+              const pdfDoc = await PDFDocument.load(fs.readFileSync(_fn))// removed: { ignoreEncryption: true } as this has unwanted side-effects
 
               const pages = pdfDoc.getPages()
               const firstPage = pages[0]
@@ -87,16 +100,13 @@ export default async function (fastify: FastifyInstance) {
               if (pageRotation === 90) {
                 drawX = coordsFromBottomLeft.x * Math.cos(rotationRads) - coordsFromBottomLeft.y * Math.sin(rotationRads) + width
                 drawY = coordsFromBottomLeft.x * Math.sin(rotationRads) + coordsFromBottomLeft.y * Math.cos(rotationRads)
-              }
-              else if (pageRotation === 180) {
+              } else if (pageRotation === 180) {
                 drawX = coordsFromBottomLeft.x * Math.cos(rotationRads) - coordsFromBottomLeft.y * Math.sin(rotationRads) + width
                 drawY = coordsFromBottomLeft.x * Math.sin(rotationRads) + coordsFromBottomLeft.y * Math.cos(rotationRads) + height
-              }
-              else if (pageRotation === 270) {
+              } else if (pageRotation === 270) {
                 drawX = coordsFromBottomLeft.x * Math.cos(rotationRads) - coordsFromBottomLeft.y * Math.sin(rotationRads)
                 drawY = coordsFromBottomLeft.x * Math.sin(rotationRads) + coordsFromBottomLeft.y * Math.cos(rotationRads) + height
-              }
-              else {
+              } else {
                 // no rotation
                 drawX = coordsFromBottomLeft.x
                 drawY = coordsFromBottomLeft.y
@@ -164,7 +174,8 @@ export default async function (fastify: FastifyInstance) {
     }
 
     try {
-      const repository = new Document()
+      const pool = await fastify.getSqlPool()
+      const repo = new Document(request.log, pool)
       // const token = request.token || { sub: null }
 
       let company: string = Tools.resolveCompany(request)
@@ -179,7 +190,7 @@ export default async function (fastify: FastifyInstance) {
       let document
       // If ALG company should be queried, then do so
       if (Tools.shouldFindCommon(company, objectType, documentType)) {
-        document = await repository.findOne({
+        document = await repo.findOne({
           company: 'alg',
           objectType,
           documentType,
@@ -189,7 +200,7 @@ export default async function (fastify: FastifyInstance) {
       }
       // If no document was found in ALG (or ALG is not required), then find with given params
       if (!document) {
-        document = await repository.findOne({
+        document = await repo.findOne({
           company,
           objectType,
           documentType,
@@ -198,7 +209,7 @@ export default async function (fastify: FastifyInstance) {
         })
       }
       if (!document && company === 'bra') {
-        document = await repository.findOne({
+        document = await repo.findOne({
           company: 'dis',
           objectType,
           documentType,
