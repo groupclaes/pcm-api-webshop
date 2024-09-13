@@ -7,9 +7,6 @@ WORKDIR /usr/src/app
 # copy project file
 COPY ./ ./
 
-# install esbuild globaly
-RUN npm install esbuild -g
-
 # install node packages
 RUN npm install
 
