@@ -8,7 +8,7 @@ WORKDIR /usr/src/app
 COPY package.json ./
 
 # install node packages
-RUN npm install
+RUN npm install --omit=dev
 
 
 # ---- Build ----
@@ -16,6 +16,9 @@ FROM depedencies AS build
 
 # copy project
 COPY ./ ./
+
+# install node packages
+RUN npm install
 
 # create esbuild package
 RUN esbuild ./src/index.ts --bundle --platform=node --minify --packages=external --external:'./config' --outfile=index.min.js
