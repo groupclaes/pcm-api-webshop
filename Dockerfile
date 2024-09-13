@@ -34,6 +34,7 @@ RUN npm install
 FROM --platform=linux/amd64 groupclaes/node AS release
 
 # add lib form pdf and image manipulation
+USER root
 RUN apk add --no-cache file imagemagick
 
 # set current user to node
