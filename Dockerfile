@@ -21,7 +21,7 @@ COPY ./ ./
 RUN npm install
 
 # create esbuild package
-RUN esbuild ./src/index.ts --bundle --platform=node --minify --packages=external --external:'./config' --outfile=index.min.js
+RUN esbuild ./index.ts --bundle --platform=node --minify --packages=external --external:'./config' --outfile=index.min.js
 
 
 # --- release ---
