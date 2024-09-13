@@ -1,19 +1,3 @@
-# ---- Build ----
-FROM --platform=linux/amd64 groupclaes/npm AS build
-
-# change the working directory to new exclusive app folder
-WORKDIR /usr/src/app
-
-# copy project file
-COPY ./ ./
-
-# install node packages
-RUN npm install
-
-# create esbuild package
-RUN esbuild ./src/index.ts --bundle --platform=node --minify --packages=external --external:'./config' --outfile=index.min.js
-
-
 # ---- Deps ----
 FROM --platform=linux/amd64 groupclaes/npm AS depedencies
 
@@ -25,6 +9,16 @@ COPY package.json ./
 
 # install node packages
 RUN npm install
+
+
+# ---- Build ----
+FROM depedencies AS build
+
+# copy project
+COPY ./ ./
+
+# create esbuild package
+RUN esbuild ./src/index.ts --bundle --platform=node --minify --packages=external --external:'./config' --outfile=index.min.js
 
 
 # --- release ---
