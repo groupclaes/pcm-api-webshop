@@ -171,9 +171,8 @@ export default async function (fastify: FastifyInstance) {
     let contentMode = 'attachment'
     // fix CSP
     reply.header('Content-Security-Policy', `default-src 'self' 'unsafe-inline' pcm.groupclaes.be`)
-    if ('show' in (request.query as any)) {
+    if ('show' in (request.query as any))
       contentMode = 'inline'
-    }
 
     try {
       const pool = await fastify.getSqlPool()
@@ -191,7 +190,7 @@ export default async function (fastify: FastifyInstance) {
 
       let document
       // If ALG company should be queried, then do so
-      if (Tools.shouldFindCommon(company, objectType, documentType)) {
+      if (Tools.shouldFindCommon(company, objectType, documentType))
         document = await repo.findOne({
           company: 'alg',
           objectType,
@@ -199,9 +198,8 @@ export default async function (fastify: FastifyInstance) {
           objectId,
           culture
         })
-      }
       // If no document was found in ALG (or ALG is not required), then find with given params
-      if (!document) {
+      if (!document)
         document = await repo.findOne({
           company,
           objectType,
@@ -209,8 +207,7 @@ export default async function (fastify: FastifyInstance) {
           objectId,
           culture
         })
-      }
-      if (!document && company === 'bra') {
+      if (!document && company === 'bra')
         document = await repo.findOne({
           company: 'dis',
           objectType,
@@ -218,24 +215,21 @@ export default async function (fastify: FastifyInstance) {
           objectId,
           culture
         })
-      }
 
       if (document) {
         const _guid = document.guid.toLowerCase()
         const _fn = `${env['DATA_PATH']}/content/${_guid.substring(0, 2)}/${_guid}/file`
 
         if (fs.existsSync(_fn)) {
-          if (thumbnail && documentType === 'foto') {
+          if (thumbnail && documentType === 'foto')
             return reply.redirect(307, `https://pcm.groupclaes.be/v3/product-images/${_guid}?s=thumb`)
-          }
           const lastMod = fs.statSync(_fn).mtime
 
           const document_name_encoded = encodeURI(document.name)
           let filename = `filename="${document_name_encoded}"; filename*=UTF-8''${document_name_encoded}`
 
-          if (contentMode === 'inline') {
+          if (contentMode === 'inline')
             filename = `filename="${document.documentType}_${document.itemNum}.${document.extension}"`
-          }
 
           reply
             .header('Cache-Control', `must-revalidate, max-age=${document.maxAge}, private`)
@@ -268,12 +262,10 @@ export default async function (fastify: FastifyInstance) {
                 x: x,
                 y: 0
               }
-              if (pageRotation === 90 || pageRotation === 270) {
+              if (pageRotation === 90 || pageRotation === 270)
                 coordsFromBottomLeft.y = width - (y + fontSize)
-              }
-              else {
+              else
                 coordsFromBottomLeft.y = height - (y + fontSize)
-              }
 
               let drawX: number = 0
               let drawY: number = 0
