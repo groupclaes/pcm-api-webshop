@@ -22,7 +22,7 @@ RUN esbuild ./src/index.ts --bundle --platform=node --minify --packages=external
 
 
 # --- release ---
-FROM --platform=linux/amd64 groupclaes/node AS release
+FROM --platform=linux/amd64 groupclaes/node
 
 # add lib form pdf and image manipulation
 USER root
