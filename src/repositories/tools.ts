@@ -2,7 +2,7 @@ import { FastifyRequest } from 'fastify'
 
 export default class Tools {
   private static companies = [
-    'gro',
+    'dis',
     'bra'
   ]
 

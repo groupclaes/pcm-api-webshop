@@ -159,6 +159,82 @@ export default async function (fastify: FastifyInstance) {
     }
   })
 
+  fastify.head('/:documentType/:objectId/:culture', async (request: FastifyRequest<{
+    Params: {
+      documentType: string
+      objectId: number
+      culture: string
+    }, Headers: {
+      accept?: string
+    }
+  }>, reply: FastifyReply) => {
+    try {
+      const pool = await fastify.getSqlPool()
+      const repo = new Document(request.log, pool)
+      // const token = request.token || { sub: null }
+
+      let company: string = Tools.resolveCompany(request)
+      let objectType: string = 'artikel'
+      let documentType: string = request.params['documentType'].toLowerCase()
+      let objectId: number = +request.params['objectId']
+      let culture: string = request.params['culture'].toLowerCase()
+
+      const thumbnail = documentType === 'display-image'
+      if (thumbnail) documentType = 'foto'
+
+      let document
+      // If ALG company should be queried, then do so
+      if (Tools.shouldFindCommon(company, objectType, documentType))
+        document = await repo.findOne({
+          company: 'alg',
+          objectType,
+          documentType,
+          objectId,
+          culture
+        })
+      // If no document was found in ALG (or ALG is not required), then find with given params
+      if (!document)
+        document = await repo.findOne({
+          company,
+          objectType,
+          documentType,
+          objectId,
+          culture
+        })
+      if (!document && company === 'bra')
+        document = await repo.findOne({
+          company: 'dis',
+          objectType,
+          documentType,
+          objectId,
+          culture
+        })
+
+      if (document) {
+        const _guid = document.guid.toLowerCase()
+        const _fn = `${env['DATA_PATH']}/content/${_guid.substring(0, 2)}/${_guid}/file`
+
+        if (fs.existsSync(_fn)) {
+          console.debug('document-guid', _guid)
+          return reply
+            .header('document-guid', _guid)
+            .type(document.mimeType)
+            .status(200)
+            .send(null)
+        }
+      }
+      console.debug('not found!')
+      return reply
+        .status(404)
+        .send()
+    } catch (err) {
+      console.debug('500!')
+      return reply
+        .status(500)
+        .send()
+    }
+  })
+
   fastify.get('/:documentType/:objectId/:culture', async (request: FastifyRequest<{
     Params: {
       documentType: string
@@ -349,90 +425,6 @@ export default async function (fastify: FastifyInstance) {
               return reply.send(stream)
             }
           }
-        }
-        return reply
-          .status(404)
-          .send({
-            status: 'Not Found',
-            statusCode: 404,
-            message: 'Document not found'
-          })
-      }
-    } catch (err) {
-      return reply
-        .status(500)
-        .send(err)
-    }
-  })
-
-  fastify.head('/:documentType/:objectId/:culture', async (request: FastifyRequest<{
-    Params: {
-      documentType: string
-      objectId: number
-      culture: string
-    }, Headers: {
-      accept?: string
-    }
-  }>, reply: FastifyReply) => {
-    try {
-      const pool = await fastify.getSqlPool()
-      const repo = new Document(request.log, pool)
-      // const token = request.token || { sub: null }
-
-      let company: string = Tools.resolveCompany(request)
-      let objectType: string = 'artikel'
-      let documentType: string = request.params['documentType'].toLowerCase()
-      let objectId: number = +request.params['objectId']
-      let culture: string = request.params['culture'].toLowerCase()
-
-      const thumbnail = documentType === 'display-image'
-      if (thumbnail) documentType = 'foto'
-
-      let document
-      // If ALG company should be queried, then do so
-      if (Tools.shouldFindCommon(company, objectType, documentType))
-        document = await repo.findOne({
-          company: 'alg',
-          objectType,
-          documentType,
-          objectId,
-          culture
-        })
-      // If no document was found in ALG (or ALG is not required), then find with given params
-      if (!document)
-        document = await repo.findOne({
-          company,
-          objectType,
-          documentType,
-          objectId,
-          culture
-        })
-      if (!document && company === 'bra')
-        document = await repo.findOne({
-          company: 'dis',
-          objectType,
-          documentType,
-          objectId,
-          culture
-        })
-
-      if (document) {
-        const _guid = document.guid.toLowerCase()
-        const _fn = `${env['DATA_PATH']}/content/${_guid.substring(0, 2)}/${_guid}/file`
-
-        if (fs.existsSync(_fn)) {
-          const lastMod = fs.statSync(_fn).mtime
-          return reply
-            .header('Cache-Control', `must-revalidate, max-age=${document.maxAge}, private`)
-            .header('document-guid', _guid)
-            .header('Expires', new Date(new Date().getTime() + (document.maxAge * 1000)).toUTCString())
-            .header('Last-Modified', lastMod.toUTCString())
-            .type(document.mimeType)
-            .status(200)
-            .send({
-              status: 'OK',
-              statusCode: 200
-            })
         }
         return reply
           .status(404)
